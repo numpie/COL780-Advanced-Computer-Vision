@@ -7,14 +7,23 @@ frame_height = int(video.get(4))
 
 fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 kernel = np.ones((5,5),np.uint8)
-out = cv2.VideoWriter("test_vids\\outpy.avi",cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
+out = cv2.VideoWriter("test_vids\\output1Contrast.avi",cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
+clahe = cv2.createCLAHE(clipLimit=10, tileGridSize=(8,8))
 
 while(1):
     ret, orig_frame = video.read()
+    # cv2.imshow("frame",orig_frame)
     if not ret:
         break
 
-    frame = fgbg.apply(orig_frame)
+    lab = cv2.cvtColor(orig_frame, cv2.COLOR_BGR2LAB)
+    lab_planes = cv2.split(lab)
+    lab_planes[0] = clahe.apply(lab_planes[0])
+    lab = cv2.merge(lab_planes)
+    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    
+    frame = fgbg.apply(bgr)
+    
     frame = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel)
     
     frame = cv2.GaussianBlur(frame, (5,5), 0)
@@ -32,50 +41,41 @@ while(1):
     x_list1 = list()
     slope_list = list()
     if lines is not None:
-        # print(lines[0][0].size)
-        
-        # y_list1 = list()
-        # y_list2 = list()
-        # for 
-        # print(lines.size)
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            m = (y2-y1)/(x2-x1)
-            slope_list.append((m,line[0]))
+            if x2!=x1 :
+                m = (y2-y1)/(x2-x1)
+                slope_list.append((m,line[0]))
             # cv2.line(frame, (a1,b1), (a2,0), (0,0,255), 2)
 
         slopes = [x[0] for x in slope_list]
         sigma = np.std(slopes)
         meu = np.mean(slopes)
 
-        cleaned_lines = [x[1] for x in slope_list if abs(x[0]-meu)<1.5*sigma]
+        cleaned_lines = [x for x in slope_list if abs(x[0]-meu)<sigma]
     
     if len(cleaned_lines) > 0:
-        print()
         for line in cleaned_lines:
-            x1, y1, x2, y2 = line
+            x1, y1, x2, y2 = line[1]
+            m = line[0]
             if y1 > y2:
-                x_list1.append((x1,x2,y1))
-                # y_list1.append(y1)
-                # y_list2.append(y2)
-                # b1 = max(b1,y1)
+                x2 = -(y2/m) + x2
+                x_list1.append((x2,m))
+                b1 = max(b1,y1)
                 # b2 = min(b2,y2)
+                # cv2.line(orig_frame, (int(x1),y1), (int(x2),0), (255,0,0), 2)
             else:
-                x_list1.append((x2,x1,y2))
-                # y_list1.append(y2)
-                # y_list2.append(y1)
-                # b1 = max(b1,y2)
+                x1 = -(y1/m) + x1
+                x_list1.append((x1,m))
+                b1 = max(b1,y2)
                 # b2 = min(b2,y1)
-            # cv2.line(orig_frame, (x1,y1), (x2,y2), (255,0,0), 2)
+                # cv2.line(orig_frame, (int(x1),0), (int(x2),y2), (255,0,0), 2)
+            # cv2.line(bgr, (int(x1),y1), (int(x2),y2), (255,0,0), 2)
         x_list1.sort()
-        # y_list1.sort()
-        # y_list2.sort()
-        print(x_list1)
-        a1,a2,b1 = x_list1[len(x_list1)//2] 
-        
-        # b2 = y_list1[len(y_list1)//2]
-        # b2 = y_list2[len(y_list2)//2]
-        cv2.line(orig_frame, (a1,b1), (a2,0), (128,0,128), 2)
+        a2= int(x_list1[len(x_list1)//2][0]+0.5)
+        m = x_list1[len(x_list1)//2][1]
+        a1 = int((b1/m)+a2+0.5)
+        cv2.line(orig_frame, (a1,b1), (a2,0), (0,0,255), 2)
     
     cv2.imshow("frame", orig_frame)
     # cv2.imshow("frame2",frame)
