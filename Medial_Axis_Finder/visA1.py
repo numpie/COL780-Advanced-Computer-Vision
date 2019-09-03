@@ -2,15 +2,16 @@ import numpy as np
 import cv2
 from sklearn.cluster import KMeans
 
-for vid_num in range(1,2):
-    video = cv2.VideoCapture('test_vids\\'+str(vid_num)+'.mp4')
+temp  = ["start","easy","middle"]
+for vid_num in range(0,1):
+    video = cv2.VideoCapture('test_vids\\'+str(temp[vid_num])+'.mp4')
     frame_width = int(video.get(3))
     frame_height = int(video.get(4))
     kmeans = KMeans(n_clusters=2)
 
     fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
     kernel = np.ones((5,5),np.uint8)
-    out = cv2.VideoWriter("test_vids\\out"+str(vid_num)+".avi",cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
+    out = cv2.VideoWriter("out"+str(temp[vid_num])+".avi",cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
     # clahe = cv2.createCLAHE(clipLimit=10, tileGridSize=(8,8))
 
     a1=0
@@ -37,6 +38,7 @@ for vid_num in range(1,2):
         
         frame = cv2.GaussianBlur(frame, (3,3), 0)
         
+        backtorgb = cv2.cvtColor(frame,cv2.COLOR_GRAY2RGB)
         edges = cv2.Canny(frame, 100, 200)
         # cv2.imshow("frame",edges)
         lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, maxLineGap=75)
@@ -72,18 +74,18 @@ for vid_num in range(1,2):
                     x_list1.append((x2,m))
                     b1 = max(b1,y1)
                     # b2 = min(b2,y2)
-                    cv2.line(orig_frame, (int(x1),y1), (int(x2),0), (255,0,0), 2)
+                    cv2.line(backtorgb, (int(x1),y1), (int(x2),0), (255,0,0), 2)
                 else:
                     x1 = -(y1/m) + x1
                     x_list1.append((x1,m))
                     b1 = max(b1,y2)
                     # b2 = min(b2,y1)
-                    cv2.line(orig_frame, (int(x1),0), (int(x2),y2), (255,0,0), 2)
+                    cv2.line(backtorgb, (int(x1),0), (int(x2),y2), (255,0,0), 2)
                 # cv2.line(bgr, (int(x1),y1), (int(x2),y2), (255,0,0), 2)
             # x_list1.sort()
             x_list = [[x[0],] for x in x_list1]
             if len(x_list)>1:
-                clusters = kmeans.fit(x_list)
+                clusters = kmeans.fit(x_list)   
                 centers = kmeans.cluster_centers_
                 # print(centers)
                 a2= int((centers[0][0]+centers[1][0])/2)
@@ -94,16 +96,16 @@ for vid_num in range(1,2):
                 slope_queue.pop(0)
             m = sorted(slope_queue)[len(slope_queue)//2]
             a1 = int((b1/m)+a2+0.5)
-            cv2.line(orig_frame, (a1,b1), (a2,0), (0,0,255), 2)
+            cv2.line(backtorgb, (a1,b1), (a2,0), (0,0,255), 2)
             prev = [a1,a2,b1]
         else:
             a1,a2,b1 = prev
             no_line_detect_count +=1
             if no_line_detect_count < 20:
-                cv2.line(orig_frame, (a1,b1), (a2,0), (0,0,255), 2)
+                cv2.line(backtorgb, (a1,b1), (a2,0), (0,0,255), 2)
         # cv2.imshow("frame", orig_frame)
-        # cv2.imshow("frame2",frame)
-        out.write(orig_frame)
+        cv2.imshow("frame2",backtorgb)
+        out.write(backtorgb)
         
         # cv2.imshow("edges", edges)
         key = cv2.waitKey(1)
